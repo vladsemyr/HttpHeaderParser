@@ -14,6 +14,7 @@
 // Upgrade-Insecure-Requests: 1
 // G�m
 
+
 enum HttpMethod {
     HTTP_METHOD_GET,
     HTTP_METHOD_POST,
@@ -25,6 +26,21 @@ enum HttpProtocol{
     HTTP_PROTOCOL_1_1,
     HTTP_PROTOCOL_UNSUPORTED,
 };
+
+#ifdef HTTP_ENABLE_HEADER_PARAM_ITERATOR
+enum HttpParamIteratorStatus {
+    HTTP_PARAM_ITERATOR_STATUS_OK = 0,
+    HTTP_PARAM_ITERATOR_STATUS_END,
+    HTTP_PARAM_ITERATOR_STATUS_ERROR,
+};
+
+struct HttpParamIterator{
+    const char * line_start;
+    const char * line_end;
+    enum HttpParamIteratorStatus status;
+};
+
+#endif
 
 struct HttpString {
     char const *ptr;
@@ -82,6 +98,7 @@ struct HttpRequest {
 };
 
 
+
 enum HttpParseHeaderError {
     HTTP_PARSE_HEADER_OK = 0,
     HTTP_PARSE_HEADER_ERROR_NULL_BUFFER,
@@ -93,5 +110,11 @@ enum HttpParseHeaderError {
 
 
 enum HttpParseHeaderError HttpHeaderParse(const char *buffer, struct HttpRequest *request) ;
+
+#ifdef HTTP_ENABLE_HEADER_PARAM_ITERATOR
+    struct HttpParamIterator HttpCreateParamIterator(const char *buffer);
+    enum HttpParamIteratorStatus HttpHeaderIteratorGetNext(struct HttpParamIterator *iterator, struct HttpKeyValue *param);
+#endif
+
 
 #endif

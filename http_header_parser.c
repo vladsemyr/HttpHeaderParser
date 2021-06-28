@@ -1,7 +1,6 @@
 #include "http_header_parser.h"
 
 
-
 static const char * GetLineBegin(const char *ptr) {
     if (ptr == NULL)
         return NULL;
@@ -73,8 +72,7 @@ static const char * StrFindFirst(const char *line, size_t len, char c) {
 }
 
 
-#include <stdio.h>
-
+#ifdef HTTP_HEADER_REQUEST_DEFINED_ANY
 static void ParseLine(const char *line_start, const char *line_end, struct HttpRequest *request) {
     if (line_start == NULL || line_end == NULL)
         return;
@@ -132,6 +130,7 @@ static void ParseLine(const char *line_start, const char *line_end, struct HttpR
     
     #undef CREATE_PARAM
 }
+#endif
 
 static enum HttpMethod HttpHeaderGetMethod(const char *line_start, const char *line_end, const char ** end_method_ptr) {
     const size_t first_line_len = line_end - line_start;
@@ -179,6 +178,24 @@ static enum HttpProtocol HttpHeaderGetProtocol(const char * path_ptr_end, const 
     return protocol;
 }
 
+struct HttpParamIterator HttpCreateParamIterator(const char *buffer) {
+    struct HttpParamIterator iter = {
+        .status = HTTP_PARAM_ITERATOR_STATUS_ERROR,
+        .line_start = NULL,
+        .line_end = NULL
+    };
+    
+    const char *line_start = GetLineBegin(buffer);
+    const char *line_end = GetLineEnd(line_start);
+    if (line_start == NULL || line_end == NULL)
+        return iter;
+    
+    iter.status = HTTP_PARAM_ITERATOR_STATUS_OK;
+    iter.line_start = line_start;
+    iter.line_end = line_end;
+    return iter;
+}
+
 enum HttpParseHeaderError HttpHeaderParse(const char *buffer, struct HttpRequest *request) {
     if (buffer == NULL)
         return HTTP_PARSE_HEADER_ERROR_NULL_BUFFER;
@@ -208,17 +225,56 @@ enum HttpParseHeaderError HttpHeaderParse(const char *buffer, struct HttpRequest
     request->protocol = protocol;
     request->path = path;
     
-    
-    
-    do {
-        ParseLine(line_start, line_end, request);
-        
-        //printf("|%.*s|\n", (int)param.param_name_len, param.param_name);
-        //printf("    |%.*s|\n", (int)param.param_value_len, param.param_value);
-        
-        line_start = GetLineBegin(line_end);
-        line_end = GetLineEnd(line_start); 
-    } while (line_start != line_end);
+    #ifdef HTTP_HEADER_REQUEST_DEFINED_ANY
+        do {
+            ParseLine(line_start, line_end, request);
+            line_start = GetLineBegin(line_end);
+            line_end = GetLineEnd(line_start); 
+        } while (line_start != line_end);
+    #endif
     
     return HTTP_PARSE_HEADER_OK;
 }
+
+#ifdef HTTP_ENABLE_HEADER_PARAM_ITERATOR
+enum HttpParamIteratorStatus HttpHeaderIteratorGetNext(struct HttpParamIterator *iterator, struct HttpKeyValue *param) {
+    const char *line_start = iterator->line_start;
+    const char *line_end   = iterator->line_end;
+    
+    line_start = GetLineBegin(line_end);
+    line_end = GetLineEnd(line_start);
+    size_t len = line_end - line_start;
+    
+    iterator->line_start = line_start;
+    iterator->line_end = line_end;
+    
+    if (line_start == NULL || line_end == NULL) {
+        return HTTP_PARAM_ITERATOR_STATUS_END;
+    }
+    
+    const char* dd = StrFindFirst(line_start, len, ':');
+    
+    if (dd == NULL) {
+        return HTTP_PARAM_ITERATOR_STATUS_ERROR;
+    }
+    
+    size_t key_len = dd - line_start;
+    const char *key_ptr = StrTrim(line_start, &key_len);
+    size_t value_len = line_end - (dd + 1);
+    const char *value_ptr = StrTrim(dd + 1, &value_len);
+    
+    struct HttpKeyValue new_param = {
+        .key = {
+            .ptr = key_ptr,
+            .len = key_len
+        },
+        .value = {
+            .ptr = value_ptr,
+            .len = value_len
+        }
+    };
+    
+    *param = new_param;
+    return HTTP_PARAM_ITERATOR_STATUS_OK;
+}
+#endif

@@ -19,6 +19,38 @@ int main() {
     enum HttpParseHeaderError error = HttpHeaderParse(header, &request); 
     (void) error;
     
+    switch (request.method) { 
+        case HTTP_METHOD_GET: {
+            consoleLogger.LPrintf(LOGGER_FULL_OK "GET");
+            break;
+        }
+        
+        case HTTP_METHOD_POST: {
+            consoleLogger.LPrintf(LOGGER_FULL_OK "POST");
+            break;
+        }
+        
+        default: {
+            consoleLogger.LPrintf(LOGGER_FULL_OK "ANOTHER");
+            break;
+        }
+    }
+    
+    #ifdef HTTP_ENABLE_HEADER_PARAM_ITERATOR
+        struct HttpParamIterator iter = HttpCreateParamIterator(header);
+        struct HttpKeyValue param = {0};
+        enum HttpParamIteratorStatus res;
+        
+        while ((res = HttpHeaderIteratorGetNext(&iter, &param)) == HTTP_PARAM_ITERATOR_STATUS_OK) {
+            consoleLogger.LPrintf("%.*s", param.key.len, param.key.ptr);
+            consoleLogger.LPrintf("%.*s", param.value.len, param.value.ptr);
+            consoleLogger.LPrintf("");
+        }
+        
+        
+    #endif
+    
+    
     //consoleLogger.LPrintf("%.*s", request.parametrs.user_agent.key.len, request.parametrs.user_agent.key.ptr);
     //consoleLogger.LPrintf("%.*s", request.parametrs.user_agent.value.len, request.parametrs.user_agent.value.ptr);
     
